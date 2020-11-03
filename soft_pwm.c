@@ -92,7 +92,7 @@ static ssize_t pwm_store(
     status = -EIO;
   }else{
     unsigned long value;
-    status = strict_strtoul(buf, 0, &value);
+    status = kstrtoul(buf, 0, &value);
     if(status==0){
       if(strcmp(attr->attr.name, "pulse")==0){
         if(value<=desc->period){ desc->pulse = (unsigned int)value; }
@@ -133,7 +133,7 @@ static ssize_t export_store(struct class *class, struct class_attribute *attr, c
   long gpio;
   int  status;
 
-  status = strict_strtol(buf, 0, &gpio);
+  status = kstrtol(buf, 0, &gpio);
   if(status<0){ goto done; }
 
   status = gpio_request(gpio, "soft_pwm");
@@ -162,7 +162,7 @@ static ssize_t unexport_store(struct class *class, struct class_attribute *attr,
   long gpio;
   int  status;
 
-  status = strict_strtol(buf, 0, &gpio);
+  status = kstrtol(buf, 0, &gpio);
   if(status<0){ goto done; }
 
   status = -EINVAL;
@@ -219,7 +219,7 @@ int pwm_export(unsigned gpio){
 }
 
 /* Used by pwm_unexport below to find the device which should be freed */
-static int match_export(struct device *dev, void *data){
+static int match_export(struct device *dev, const void *data){
   return dev_get_drvdata(dev) == data;
 }
 
@@ -268,7 +268,15 @@ enum hrtimer_restart soft_pwm_hrtimer_callback(struct hrtimer *timer){
       (desc->pulses!=0)
     ){
       if(desc->next_tick.tv64<=now.tv64){
-        desc->value = 1-desc->value;
+	if(desc->pulse == 0){
+	    desc->value = 0;		
+	}
+	else if(desc->pulse == desc->period){
+	    desc->value = 1;		
+	}	
+	else{
+            desc->value = 1-desc->value;    
+	}
         __gpio_set_value(gpio,desc->value);
         desc->counter++;
         if(desc->pulses>0){ desc->pulses--; }
@@ -301,7 +309,8 @@ static int __init soft_pwm_init(void){
   int status;
   printk(KERN_INFO "SoftPWM v0.1 initializing.\n");
 
-  hrtimer_get_res(CLOCK_MONOTONIC, &tp);
+  tp.tv_sec = 0;
+  tp.tv_nsec = hrtimer_resolution;
   printk(KERN_INFO "Clock resolution is %ldns\n", tp.tv_nsec);
 
   hrtimer_init(&hr_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);

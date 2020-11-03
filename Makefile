@@ -1,17 +1,12 @@
-CROSS_COMPILE=arm-linux-gnueabi-
+obj-m := soft_pwm.o
 
-ifneq ($(KERNELRELEASE),)
-obj-m       := soft_pwm.o
+SRC := $(shell pwd)
 
-else
-PWD  := $(shell pwd)
-KDIR ?= $(PWD)/../linux-2.6.38/
+all:
+	$(MAKE) -C $(KERNEL_SRC) M=$(SRC)
 
-modules:
-	$(MAKE) -C $(KDIR) SUBDIRS=$(PWD) modules
+modules_install:
+	$(MAKE) -C $(KERNEL_SRC) M=$(SRC) modules_install
+
 clean:
 	rm -rf *.o *~ core .depend .*.cmd *.ko *.mod.c .tmp_versions modules.order Module.symvers
-
-.PHONY: modules clean
-
-endif
