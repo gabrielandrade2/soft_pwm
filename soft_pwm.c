@@ -18,7 +18,7 @@
 #include <linux/gpio.h>
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Antonio Galea");
+MODULE_AUTHOR("Gabriel Andrade");
 MODULE_DESCRIPTION("Driver for kernel-generated PWM signals");
 
 static struct hrtimer hr_timer;
@@ -177,16 +177,29 @@ done:
   return status ? : len;
 }
 
+static CLASS_ATTR_WO(export);
+static CLASS_ATTR_WO(unexport);
+
 /* Sysfs definitions for soft_pwm class */
-static struct class_attribute soft_pwm_class_attrs[] = {
+/*static struct class_attribute soft_pwm_class_attrs[] = {
    __ATTR(export,   0200, NULL, export_store),
    __ATTR(unexport, 0200, NULL, unexport_store),
    __ATTR_NULL,
+};*/
+
+static struct attribute *soft_pwm_class_attrs[] = {
+	&class_attr_export.attr,
+	&class_attr_unexport.attr,
+	NULL,
 };
+
+ATTRIBUTE_GROUPS(soft_pwm_class);
+
 static struct class soft_pwm_class = {
   .name =        "soft_pwm",
   .owner =       THIS_MODULE,
-  .class_attrs = soft_pwm_class_attrs,
+  //.class_attrs = soft_pwm_class_attrs,
+  .class_groups = soft_pwm_class_groups,
 };
 
 /* Setup the sysfs directory for a claimed PWM device */
@@ -281,7 +294,7 @@ enum hrtimer_restart soft_pwm_hrtimer_callback(struct hrtimer *timer){
         desc->counter++;
         if(desc->pulses>0){ desc->pulses--; }
         if((desc->pulse==0)||(desc->pulse==desc->period)||(desc->pulses==0)){
-          desc->next_tick.tv64 = KTIME_MAX;
+          desc->next_tick = KTIME_MAX;
         }else{
           desc->next_tick=ktime_add_ns(
             desc->next_tick,
@@ -289,12 +302,12 @@ enum hrtimer_restart soft_pwm_hrtimer_callback(struct hrtimer *timer){
           );
         }
       }
-      if((next_tick.tv64==0)||(desc->next_tick.tv64<next_tick.tv64)){
-        next_tick.tv64 = desc->next_tick.tv64;
+      if((next_tick==0)||(desc->next_tick<next_tick)){
+        next_tick = desc->next_tick;
       }
     }
   }
-  if(next_tick.tv64>0){
+  if(next_tick>0){
     hrtimer_start(&hr_timer, next_tick, HRTIMER_MODE_ABS);
   }else{
     printk(KERN_INFO "Stopping timer.\n");
