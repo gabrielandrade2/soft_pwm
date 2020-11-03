@@ -102,7 +102,6 @@ static ssize_t pwm_store(
         desc->pulses = (unsigned int)value;
       }
       desc->next_tick = ktime_get();
-      printk(KERN_INFO "Starting timer (%s).\n", attr->attr.name);
       hrtimer_start(&hr_timer, ktime_set(0,1), HRTIMER_MODE_REL);
     }
   }
@@ -309,15 +308,13 @@ enum hrtimer_restart soft_pwm_hrtimer_callback(struct hrtimer *timer){
   }
   if(next_tick>0){
     hrtimer_start(&hr_timer, next_tick, HRTIMER_MODE_ABS);
-  }else{
-    printk(KERN_INFO "Stopping timer.\n");
   }
   return HRTIMER_NORESTART;
 }
 
 /* module initialization: init the hr-timer and register a driver class */
 static int __init soft_pwm_init(void){
-  struct timespec tp;
+  struct timespec64 tp;
 
   int status;
   printk(KERN_INFO "SoftPWM v0.1 initializing.\n");
